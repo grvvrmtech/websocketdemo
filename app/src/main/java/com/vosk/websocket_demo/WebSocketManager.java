@@ -2,13 +2,19 @@ package com.vosk.websocket_demo;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 import android.widget.TextView;
 
 import com.neovisionaries.ws.client.WebSocket;
 import com.neovisionaries.ws.client.WebSocketFactory;
+
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.URI;
@@ -20,14 +26,21 @@ import java.util.concurrent.TimeUnit;
 
 public class WebSocketManager {
 
+
     /*
      *   Status Indicator
      *
      */
 
-    static final int  WEBSOCKET_CONNECT_FAIL = 1;
-    static final int  WEBSOCKET_CONNECT_SUCCESS = 2;
+    public static final int  WEBSOCKET_CONNECT_FAIL = 1;
+    public static final int  WEBSOCKET_CONNECT_SUCCESS = 2;
     public static final int WEBSOCKET_TEXT = 3;
+    public static final int RECORDER_STOPED = 4;
+    public static final int RECORDER_STARTED = 5;
+
+
+
+
 
     // Sets the amount of time an idle thread will wait for a task before terminating
     private static final int KEEP_ALIVE_TIME = 1;
@@ -58,6 +71,9 @@ public class WebSocketManager {
 
     // A single instance of PhotoManager, used to implement the singleton pattern
     private static WebSocketManager sInstance = null;
+
+    final int sampleRate = 16000;
+    int bufferSize;
 
     // A static block that sets class fields
     static {
@@ -117,17 +133,46 @@ public class WebSocketManager {
 
                         // If the download has started, sets background color to dark green
                         case WEBSOCKET_CONNECT_SUCCESS:
+                            Log.i("messageHandle","WEBSOCKET_CONNECT_SUCCESS");
                             localView.setText("WEBSOCKET_CONNECT_SUCCESS");
                             break;
-
                         case WEBSOCKET_CONNECT_FAIL:
+                            Log.i("messageHandle","WEBSOCKET_CONNECT_FAIL");
                             localView.setText("WEBSOCKET_CONNECT_FAIL");
-
                             // Attempts to re-use the Task object
                             recycleTask(webSocketTask);
                             break;
+                        case RECORDER_STOPED:
+                            Log.i("messageHandle","RECORDER_STOPED");
+
+                            localView.setText("RECORDER_STOPED");
+                            break;
+                        case RECORDER_STARTED:
+                            Log.i("messageHandle","RECORDER_STARTED");
+                            localView.setText("RECORDER_STARTED");
+                            break;
                         case WEBSOCKET_TEXT:
-                            localView.setText("WEBSOCKET_TEXT");
+                            Log.i("messageHandle","WEBSOCKET_TEXT");
+                            String message = webSocketTask.getMessage();
+                            String temp = "";
+                            JSONObject reader = null;
+                            try {
+                                reader = new JSONObject(message);
+                                if (reader.has("text")) {
+                                    temp = reader.getString("text");
+                                    Log.i("full text ", temp);
+                                } else if (reader.has("partial")) {
+                                    temp = reader.getString("partial");
+                                    Log.i("partial ", temp);
+                                }
+
+                                if (temp.length() > 0)
+                                    Log.i("TRANSCRIPT", temp + '\n');
+                                localView.setText(temp+'\n');
+                            }catch (Exception e)
+                            {
+                                e.printStackTrace();
+                            }
                             break;
                         default:
                             // Otherwise, calls the super method
@@ -149,15 +194,15 @@ public class WebSocketManager {
 
     /**
      * Handles state messages for a particular task object
-     * @param photoTask A task object
+     * @param webSocketTask A task object
      * @param state The state of the task
      */
     @SuppressLint("HandlerLeak")
-    public void handleState(WebSocketTask photoTask, int state) {
+    public void handleState(WebSocketTask webSocketTask, int state) {
         switch (state) {
             // In all other cases, pass along the message without any other action.
             default:
-                mHandler.obtainMessage(state, photoTask).sendToTarget();
+                mHandler.obtainMessage(state, webSocketTask).sendToTarget();
                 break;
         }
 
@@ -229,6 +274,22 @@ public class WebSocketManager {
         }
     }
 
+    private AudioRecord getAudioRecording() throws IOException {
+        //bufferSize = 16000;//Math.round(sampleRate * BUFFER_SIZE_SECONDS);//
+        bufferSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        AudioRecord recorder = new AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+
+        if (recorder.getState() == AudioRecord.STATE_UNINITIALIZED) {
+            recorder.release();
+            throw new IOException(
+                    "Failed to initialize recorder. Microphone might be already in use.");
+        }
+        return recorder;
+    }
+
     /**
      * Starts an image download and decode
      *
@@ -240,27 +301,30 @@ public class WebSocketManager {
             TextView textView,
             String uri,
             Context context,
-            boolean cacheFlag) {
+            boolean cacheFlag,
+            boolean fileFlag) {
 
         /*
          * Gets a task from the pool of tasks, returning null if the pool is empty
          */
         WebSocketTask webSocketTask = sInstance.mWebSocketTaskWorkQueue.poll();
+        if (null == webSocketTask) {
+            webSocketTask = new WebSocketTask();
+        }
         WebSocket webSocket = null;
+        AudioRecord audioRecord = null;
         try {
             webSocket = sInstance.mWebSocketFactory.createSocket(uri);
+            audioRecord = sInstance.getAudioRecording();
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         // If the queue was empty, create a new task instead.
-        if (null == webSocketTask) {
-            webSocketTask = new WebSocketTask();
-        }
+
 
         // Initializes the task
-        webSocketTask.initializeWebSocketTask(WebSocketManager.sInstance, textView, webSocket, context, cacheFlag);
-
+        webSocketTask.initializeWebSocketTask(WebSocketManager.sInstance, textView, webSocket, audioRecord, context, cacheFlag, fileFlag);
 
         sInstance.mWebSocketThreadPool.execute(webSocketTask.getWebSocketRunnable());
 

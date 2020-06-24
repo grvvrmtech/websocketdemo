@@ -1,14 +1,13 @@
 package com.vosk.websocket_demo;
 
 import android.content.Context;
-import android.graphics.Bitmap;
+import android.media.AudioRecord;
 import android.widget.TextView;
-
 import com.neovisionaries.ws.client.WebSocket;
 import com.vosk.websocket_demo.WebSocketRunnable.TaskRunnableWebSocketMethods;
-
 import java.lang.ref.WeakReference;
 import java.net.URL;
+import java.util.concurrent.CountDownLatch;
 
 
 public class WebSocketTask implements TaskRunnableWebSocketMethods {
@@ -35,8 +34,14 @@ public class WebSocketTask implements TaskRunnableWebSocketMethods {
 
     private static WebSocket sWebSocket;
 
+    private static AudioRecord sAudioRecord;
+
     private static Context sContext;
 
+    CountDownLatch mRecievedLatch = null;
+
+    private boolean mFileFlag;
+    private String mMessage;
 
     WebSocketTask() {
         mWebSocketRunnable = new WebSocketRunnable(this);
@@ -53,14 +58,18 @@ public class WebSocketTask implements TaskRunnableWebSocketMethods {
             WebSocketManager webSocketManager,
             TextView textView,
             WebSocket webSocket,
+            AudioRecord audioRecord,
             Context context,
-            boolean cacheFlag)
+            boolean cacheFlag,
+            boolean fileFlag)
     {
         sWebSocketManager = webSocketManager;
         sWebSocket = webSocket;
+        sAudioRecord = audioRecord;
         mTextViewWeakRef = new WeakReference<TextView>(textView);
         mCacheEnabled = cacheFlag;
         sContext = context;
+        mFileFlag = fileFlag;
     }
 
     // Detects the state of caching
@@ -78,7 +87,6 @@ public class WebSocketTask implements TaskRunnableWebSocketMethods {
         return mWebSocketRunnable;
     }
 
-
     /**
      * Recycles an PhotoTask object before it's put back into the pool. One reason to do
      * this is to avoid memory leaks.
@@ -91,7 +99,6 @@ public class WebSocketTask implements TaskRunnableWebSocketMethods {
             mTextViewWeakRef = null;
         }
     }
-
 
     // Returns the ImageView that's being constructed.
     public TextView getTextView() {
@@ -135,8 +142,42 @@ public class WebSocketTask implements TaskRunnableWebSocketMethods {
     }
 
     @Override
+    public AudioRecord getAudioRecorder() {
+        return sAudioRecord;
+    }
+
+    @Override
+    public boolean getFileFlag() {
+        return mFileFlag;
+    }
+
+    @Override
     public Context getContext() {
         return sContext;
+    }
+
+
+    @Override
+    public void setRecievedLatch(CountDownLatch recievedLatch) {
+        if (mRecievedLatch == null)
+        {
+            mRecievedLatch = recievedLatch;
+        }
+    }
+
+    @Override
+    public CountDownLatch getRecievedLatch() {
+        return mRecievedLatch;
+    }
+
+    @Override
+    public void setMessage(String message) {
+        mMessage = message;
+    }
+
+    @Override
+    public String getMessage() {
+        return mMessage;
     }
 
     /*
@@ -155,6 +196,12 @@ public class WebSocketTask implements TaskRunnableWebSocketMethods {
                 break;
             case WebSocketRunnable.WEBSOCKET_STATE_STARTED:
                 outState = WebSocketManager.WEBSOCKET_CONNECT_SUCCESS;
+                break;
+            case WebSocketRunnable.RECORDER_STOPED:
+                outState = WebSocketManager.RECORDER_STOPED;
+                break;
+            case WebSocketRunnable.RECORDER_STARTED:
+                outState = WebSocketManager.RECORDER_STARTED;
                 break;
             default:
                 outState = WebSocketManager.WEBSOCKET_TEXT;
