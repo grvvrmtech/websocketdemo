@@ -97,6 +97,7 @@ public class WebSocketRunnable implements Runnable {
             else
                 runLiveTranscript();
 
+
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -105,11 +106,16 @@ public class WebSocketRunnable implements Runnable {
     private void runFileTranscript() throws IOException, InterruptedException {
         InputStream fis = mWebSocketTask.getContext().getAssets().open("test16k.wav");
         DataInputStream dis = new DataInputStream(fis);
-        byte[] buf = new byte[16000];
+        int bufferSize = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        byte[] buf = new byte[bufferSize];
         while (true) {
-            int nbytes = dis.read(buf);
-            if (nbytes < 0) break;
-
+            int nbytes = dis.read(buf, 0 , buf.length);
+            if (nbytes < 0 || Thread.interrupted()) {
+                mWebSocketTask.getWebSocket().disconnect();
+                dis.close();
+                fis.close();
+                break;
+            }
             mWebSocketTask.setRecievedLatch(new CountDownLatch(1));
             mWebSocketTask.getWebSocket().sendBinary(buf);
             mWebSocketTask.getRecievedLatch().await();
@@ -133,22 +139,17 @@ public class WebSocketRunnable implements Runnable {
         byte[] buffer = new byte[bufferSize];
 
         while (true) {
-            if (Thread.interrupted())
+            int nread = recorder.read(buffer, 0, buffer.length);
+            if (nread < 0 || Thread.interrupted())
             {
                 recorder.stop();
                 mWebSocketTask.getWebSocket().disconnect();
-                mWebSocketTask.handleWebSocketState(RECORDER_STOPED);
                 break;
                 //throw new InterruptedException();
             }
-            int nread = recorder.read(buffer, 0, buffer.length);
-            if (nread < 0) {
-                throw new RuntimeException("error reading audio buffer");
-            } else {
-                mWebSocketTask.setRecievedLatch(new CountDownLatch(1));
-                mWebSocketTask.getWebSocket().sendBinary(buffer);
-                mWebSocketTask.getRecievedLatch().await();
-            }
+            mWebSocketTask.setRecievedLatch(new CountDownLatch(1));
+            mWebSocketTask.getWebSocket().sendBinary(buffer);
+            mWebSocketTask.getRecievedLatch().await();
         }
 
 

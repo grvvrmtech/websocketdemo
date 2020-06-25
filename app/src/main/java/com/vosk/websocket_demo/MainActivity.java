@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
 
         transcribe_file.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                    WebSocketManager.startTranscript(textView, "ws://192.168.105.95:2700", MainActivity.this, false, true);
+                webSocketTask = WebSocketManager.startTranscript(textView, "ws://192.168.105.95:2701", MainActivity.this, false, true);
             }
         });
         transcribe_live.setOnClickListener(new View.OnClickListener() {

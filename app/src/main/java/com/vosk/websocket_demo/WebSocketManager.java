@@ -167,8 +167,10 @@ public class WebSocketManager {
                                 }
 
                                 if (temp.length() > 0)
-                                    Log.i("TRANSCRIPT", temp + '\n');
-                                localView.setText(temp+'\n');
+                                {
+                                        Log.i("TRANSCRIPT", temp + '\n');
+                                        localView.setText(temp+'\n');
+                                }
                             }catch (Exception e)
                             {
                                 e.printStackTrace();
