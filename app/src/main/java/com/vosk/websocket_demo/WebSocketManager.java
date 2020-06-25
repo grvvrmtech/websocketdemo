@@ -124,8 +124,6 @@ public class WebSocketManager {
 
                 // If this input view isn't null
                 if (localView != null) {
-
-
                     /*
                      * Chooses the action to take, based on the incoming message
                      */
@@ -134,32 +132,29 @@ public class WebSocketManager {
                         // If the download has started, sets background color to dark green
                         case WEBSOCKET_CONNECT_SUCCESS:
                             Log.i("messageHandle","WEBSOCKET_CONNECT_SUCCESS");
-                            localView.setText("WEBSOCKET_CONNECT_SUCCESS");
                             break;
                         case WEBSOCKET_CONNECT_FAIL:
                             Log.i("messageHandle","WEBSOCKET_CONNECT_FAIL");
-                            localView.setText("WEBSOCKET_CONNECT_FAIL");
                             // Attempts to re-use the Task object
                             recycleTask(webSocketTask);
                             break;
                         case RECORDER_STOPED:
                             Log.i("messageHandle","RECORDER_STOPED");
-
-                            localView.setText("RECORDER_STOPED");
                             break;
                         case RECORDER_STARTED:
                             Log.i("messageHandle","RECORDER_STARTED");
-                            localView.setText("RECORDER_STARTED");
                             break;
                         case WEBSOCKET_TEXT:
                             Log.i("messageHandle","WEBSOCKET_TEXT");
                             String message = webSocketTask.getMessage();
                             String temp = "";
                             JSONObject reader = null;
+                            boolean isFinal = false;
                             try {
                                 reader = new JSONObject(message);
                                 if (reader.has("text")) {
                                     temp = reader.getString("text");
+                                    isFinal = true;
                                     Log.i("full text ", temp);
                                 } else if (reader.has("partial")) {
                                     temp = reader.getString("partial");
@@ -169,7 +164,10 @@ public class WebSocketManager {
                                 if (temp.length() > 0)
                                 {
                                         Log.i("TRANSCRIPT", temp + '\n');
-                                        localView.setText(temp+'\n');
+                                        if (isFinal)
+                                        {
+                                            localView.append(temp+'\n');
+                                        }
                                 }
                             }catch (Exception e)
                             {

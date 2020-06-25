@@ -27,21 +27,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final Button transcribe_file = findViewById(R.id.transcribe_file);
-        final Button transcribe_live = findViewById(R.id.transcribe_live);
+        final Button attendence = findViewById(R.id.attendence);
+        final Button english = findViewById(R.id.english);
         final Button stop_transcribe_live = findViewById(R.id.stop_transcribe_live);
 
-        final TextView textView = findViewById(R.id.transcript);
+        final TextView textView = findViewById(R.id.editTextTextMultiLine);
         textView.setMovementMethod(new ScrollingMovementMethod());
 
-        transcribe_file.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                webSocketTask = WebSocketManager.startTranscript(textView, "ws://192.168.105.95:2701", MainActivity.this, false, true);
-            }
-        });
-        transcribe_live.setOnClickListener(new View.OnClickListener() {
+        attendence.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 webSocketTask = WebSocketManager.startTranscript(textView, "ws://192.168.105.95:2700", MainActivity.this, false, false);
+            }
+        });
+        english.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                webSocketTask = WebSocketManager.startTranscript(textView, "ws://192.168.105.95:2701", MainActivity.this, false, false);
             }
         });
 
